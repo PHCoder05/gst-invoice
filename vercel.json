@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "installCommand": "npm install --legacy-peer-deps"
+      }
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_RAZORPAY_KEY_ID": "rzp_live_eF04QnCqujCHIQ",
+    "NEXT_PUBLIC_APP_URL": "https://gst-invoice-system.vercel.app"
+  }
+} 
