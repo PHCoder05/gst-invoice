@@ -13,29 +13,54 @@ export async function createPaymentLink(data: {
   description?: string;
 }) {
   try {
-    const response = await fetch('/api/create-payment-link', {
+    // Use the environment variable for the API URL
+    const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payment-link`;
+    console.log('Creating payment link with data:', {
+      amount: data.amount,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      invoiceId: data.invoiceId,
+      description: data.description
+    });
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        transactionId: data.invoiceId,
+      }),
     });
 
     const responseText = await response.text();
-    console.log('Payment link API response:', responseText);
-
+    
     try {
       const result = JSON.parse(responseText);
+      console.log('Payment link API response:', result);
       
       if (!response.ok || !result.success) {
         const errorMessage = result.error || result.details || 'Failed to create payment link';
+        console.error('Payment link creation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          result
+        });
         throw new Error(errorMessage);
+      }
+      
+      if (!result.paymentLink) {
+        console.error('Payment link missing in response:', result);
+        throw new Error('Invalid response: Payment link URL not found');
       }
       
       return result;
     } catch (parseError) {
-      console.error('Failed to parse API response:', parseError);
-      throw new Error(`Invalid API response: ${responseText.substring(0, 100)}`);
+      console.error('Failed to parse API response:', {
+        error: parseError,
+        responseText
+      });
+      throw new Error('Invalid API response: ' + (parseError instanceof Error ? parseError.message : String(parseError)));
     }
   } catch (error) {
     console.error('Error creating payment link:', error);

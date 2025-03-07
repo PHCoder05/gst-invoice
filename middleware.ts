@@ -7,16 +7,18 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
   
-  // List of API routes that should be public (no authentication required)
-  const publicApiRoutes = [
+  // List of public routes that don't require authentication
+  const publicRoutes = [
+    '/',
+    '/login',
     '/api/payment-link',
     '/api/payments/razorpay',
     '/api/razorpay'
   ];
   
   // Check if the current route is in the public routes list
-  const isPublicRoute = publicApiRoutes.some(route => 
-    req.nextUrl.pathname.startsWith(route)
+  const isPublicRoute = publicRoutes.some(route => 
+    req.nextUrl.pathname === route || req.nextUrl.pathname.startsWith(route + '/')
   );
   
   // If it's a public route, allow access without authentication
@@ -62,15 +64,48 @@ export function middleware(req: NextRequest) {
     })();
   }
 
+  // Add security headers
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self';
+    connect-src 'self' 
+      https://api.razorpay.com 
+      https://vercel.live 
+      https://*.vercel.app 
+      https://bctyvhykgrytmtmubwvt.supabase.co
+      http://localhost:* 
+      http://127.0.0.1:*;
+    frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
+  `.replace(/\s+/g, ' ').trim();
+
+  // Set security headers
+  res.headers.set('Content-Security-Policy', cspHeader);
+  
+  // Add other security headers
+  res.headers.set('X-Frame-Options', 'DENY');
+  res.headers.set('X-Content-Type-Options', 'nosniff');
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
   return res;
 }
 
 // Specify which routes this middleware should run on
 export const config = {
   matcher: [
+    '/',
+    '/login',
     '/api/:path*',
     '/services/:path*',
     '/invoices/:path*',
     '/transactions/:path*',
+    // Match all request paths except for the ones starting with:
+    // - api (API routes)
+    // - _next/static (static files)
+    // - _next/image (image optimization files)
+    // - favicon.ico (favicon file)
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }; 
