@@ -1,17 +1,28 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check, ArrowLeft } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
+import { Badge } from "@/components/ui/badge"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function PaymentSuccessPage() {
+// Loading component for suspense fallback
+function PaymentSuccessLoading() {
+  return (
+    <div className="container mx-auto py-20 text-center">
+      <p className="text-xl">Loading payment information...</p>
+    </div>
+  )
+}
+
+// Component that uses useSearchParams must be wrapped in Suspense
+function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -115,44 +126,59 @@ export default function PaymentSuccessPage() {
           <CardDescription>Your payment has been processed successfully</CardDescription>
         </CardHeader>
         
-        <CardContent>
+        <CardContent className="space-y-4">
           {invoiceData && (
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Invoice Number:</span>
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Invoice Number:</span>
                 <span className="font-medium">{invoiceData.invoice_number}</span>
               </div>
               
-              <div className="flex justify-between">
-                <span className="text-gray-500">Amount:</span>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Amount Paid:</span>
                 <span className="font-medium">₹{invoiceData.total_amount?.toFixed(2)}</span>
               </div>
               
-              <div className="flex justify-between">
-                <span className="text-gray-500">Status:</span>
-                <span className="font-medium text-green-600">Paid</span>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Payment ID:</span>
+                <span className="font-medium break-all">{razorpay_payment_id || invoiceData.payment_id || "N/A"}</span>
               </div>
               
-              {razorpay_payment_id && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Payment ID:</span>
-                  <span className="font-medium">{razorpay_payment_id}</span>
-                </div>
-              )}
-            </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Status:</span>
+                <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">Paid</Badge>
+              </div>
+            </>
           )}
         </CardContent>
         
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleGoHome}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+        <CardFooter className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+          <Button 
+            variant="outline" 
+            className="w-full sm:w-auto"
+            onClick={handleGoHome}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Go to Home
           </Button>
-          <Button onClick={handleGoToInvoice}>
+          
+          <Button 
+            className="w-full sm:w-auto"
+            onClick={handleGoToInvoice}
+          >
             View Invoice
           </Button>
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+// Main component with suspense boundary
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<PaymentSuccessLoading />}>
+      <PaymentSuccessContent />
+    </Suspense>
   )
 } 

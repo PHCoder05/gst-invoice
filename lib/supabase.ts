@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Service as ServiceType } from '@/types/service';
-import { SupabaseClient } from '@supabase/supabase-js';
 
 // Helper function to check if a string is a valid URL
 function isValidUrl(urlString: string | undefined): boolean {
@@ -23,8 +22,10 @@ console.log(`Supabase URL (redacted): ${supabaseUrl ? `${supabaseUrl.substring(0
 console.log(`Supabase Anon Key provided: ${supabaseAnonKey ? 'Yes' : 'No'}`);
 
 // Create a mock Supabase client that mimics the structure but doesn't do anything
-const createMockClient = () => {
+const createMockClient = (): SupabaseClient => {
   console.warn('Using mock Supabase client. Your app will work, but no data will be stored or retrieved.');
+  
+  // Cast to unknown first to avoid TypeScript errors
   return {
     from: () => ({
       select: () => ({
@@ -36,28 +37,20 @@ const createMockClient = () => {
         order: () => Promise.resolve({ data: [], error: null }),
         delete: () => Promise.resolve({ error: null }),
         insert: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: null, error: null }),
-          }),
+          select: () => Promise.resolve({ data: null, error: null }),
         }),
         update: () => ({
           eq: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: null, error: null }),
-            }),
+            select: () => Promise.resolve({ data: null, error: null }),
           }),
         }),
       }),
       insert: () => ({
-        select: () => ({
-          single: () => Promise.resolve({ data: null, error: null }),
-        }),
+        select: () => Promise.resolve({ data: null, error: null }),
       }),
       update: () => ({
         eq: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: null, error: null }),
-          }),
+          select: () => Promise.resolve({ data: null, error: null }),
         }),
       }),
       delete: () => ({
@@ -65,11 +58,12 @@ const createMockClient = () => {
       }),
     }),
     auth: {
-      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      signInAnonymously: () => Promise.resolve({ data: null, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: null }),
       signOut: () => Promise.resolve({ error: null }),
     },
-  } as SupabaseClient;
+  } as unknown as SupabaseClient;
 };
 
 // Determine whether to use a real or mock client
@@ -186,7 +180,7 @@ export type TransactionItem = {
 }
 
 export type Transaction = {
-  id?: string
+  id: string
   customer_name: string
   customer_email: string
   customer_gstin?: string

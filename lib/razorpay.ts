@@ -13,14 +13,24 @@ export async function createPaymentLink(data: {
   description?: string;
 }) {
   try {
-    // Use the environment variable for the API URL
-    const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payment-link`;
+    // Get the correct API URL from environment or fallback to relative path
+    let apiUrl = '/api/payment-link';
+    if (typeof window !== 'undefined') {
+      // When running in browser
+      const origin = window.location.origin;
+      apiUrl = `${origin}/api/payment-link`;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      // When running in server-side environment
+      apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payment-link`;
+    }
+    
     console.log('Creating payment link with data:', {
       amount: data.amount,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
       invoiceId: data.invoiceId,
-      description: data.description
+      description: data.description,
+      apiUrl
     });
     
     const response = await fetch(apiUrl, {
@@ -33,11 +43,14 @@ export async function createPaymentLink(data: {
       }),
     });
 
+    console.log('Payment link API response status:', response.status);
+    
     const responseText = await response.text();
+    console.log('Payment link API raw response:', responseText);
     
     try {
       const result = JSON.parse(responseText);
-      console.log('Payment link API response:', result);
+      console.log('Payment link API parsed response:', result);
       
       if (!response.ok || !result.success) {
         const errorMessage = result.error || result.details || 'Failed to create payment link';

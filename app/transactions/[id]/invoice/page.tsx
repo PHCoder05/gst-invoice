@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Download, Printer, CreditCard, Share2, Link } from "lucide-react"
-import { getTransaction, updateTransactionPayment, type Transaction } from "@/lib/supabase"
+import { getTransaction, updateTransactionPayment } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createPaymentLink } from "@/lib/razorpay"
+import { type Transaction } from '@/lib/temp'
 
 declare global {
   interface Window {
@@ -70,46 +71,20 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
     }
   }, [])
 
-  async function loadTransaction() {
+  const loadTransaction = async () => {
     try {
       setIsLoading(true)
       const data = await getTransaction(params.id)
+      if (!data) {
+        throw new Error('Transaction not found')
+      }
       setTransaction(data)
     } catch (error) {
-      console.error("Error loading transaction:", error);
+      console.error('Error loading transaction:', error)
       toast({
         title: "Error",
-        description: "Failed to load transaction. Using mock data instead.",
+        description: "Failed to load transaction details",
         variant: "destructive",
-      })
-      
-      // Create mock transaction data if real data can't be loaded
-      setTransaction({
-        id: params.id,
-        customer_name: "Test Customer",
-        customer_email: "test@example.com",
-        invoice_number: `INV-MOCK-${params.id}`,
-        invoice_date: new Date().toISOString(),
-        subtotal: 1000,
-        discount_type: "percentage",
-        discount_value: 0,
-        discount_amount: 0,
-        taxable_amount: 1000,
-        cgst_amount: 90,
-        sgst_amount: 90,
-        total_amount: 1180,
-        payment_status: "pending",
-        items: [
-          {
-            service_id: "mock-1",
-            service_name: "Mock Service",
-            service_description: "This is a mock service for testing",
-            hsn_code: "998314",
-            price: 1000,
-            gst_rate: 18,
-            quantity: 1,
-          }
-        ]
       })
     } finally {
       setIsLoading(false)
@@ -381,24 +356,21 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
   };
 
   const handleGeneratePaymentLink = async () => {
-    if (!transaction) {
+    if (!transaction || !transaction.id) {
       toast({
         title: "Error",
-        description: "Transaction data is missing. Reload the page and try again.",
+        description: "Transaction details not found",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
     
-    setIsGeneratingLink(true)
-    console.log(`Attempting to generate payment link for transaction ID: ${transaction.id}`)
-    
     try {
-      // Use the new utility function to create a payment link
+      setIsGeneratingLink(true)
       const result = await createPaymentLink({
         amount: transaction.total_amount,
-        customerName: transaction.customer_name,
-        customerEmail: transaction.customer_email,
+        customerName: transaction.customer_name || 'Customer',
+        customerEmail: transaction.customer_email || '',
         invoiceId: transaction.id,
         description: `Invoice #${transaction.invoice_number} - Amount: ₹${transaction.total_amount.toFixed(2)}`
       });
@@ -409,54 +381,15 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
       
       toast({
         title: "Success",
-        description: "Payment link generated successfully. You can now share it with your customer.",
+        description: "Payment link generated successfully",
       });
     } catch (error) {
-      console.error("Error generating payment link:", error);
-      
-      // Show a more helpful error message
-      let errorMessage = "Failed to generate payment link. ";
-      if (error instanceof Error) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += "Please try again.";
-      }
-      
+      console.error('Error generating payment link:', error);
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Failed to generate payment link",
         variant: "destructive",
       });
-      
-      // Try with fallback transaction ID if this was a "transaction not found" error
-      if (error instanceof Error && error.message.includes("Transaction not found")) {
-        toast({
-          title: "Trying fallback...",
-          description: "Attempting to generate a test payment link.",
-        });
-        
-        try {
-          // Create a payment link with a fallback transaction ID
-          const fallbackResult = await createPaymentLink({
-            amount: transaction.total_amount,
-            customerName: transaction.customer_name,
-            customerEmail: transaction.customer_email,
-            invoiceId: "77e80e66-01d6-4d45-b566-11438b2684b8", // Fallback ID
-            description: `Invoice #${transaction.invoice_number} (Test) - Amount: ₹${transaction.total_amount.toFixed(2)}`
-          });
-          
-          console.log("Fallback payment link generated:", fallbackResult.paymentLink);
-          setPaymentLink(fallbackResult.paymentLink);
-          setShowLinkDialog(true);
-          
-          toast({
-            title: "Success",
-            description: "Test payment link generated successfully. This is for testing purposes only.",
-          });
-        } catch (fallbackError) {
-          console.error("Fallback payment link generation failed:", fallbackError);
-        }
-      }
     } finally {
       setIsGeneratingLink(false);
     }

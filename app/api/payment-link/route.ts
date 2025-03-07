@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
+// Define a type for Razorpay error
+interface RazorpayError {
+  statusCode?: number;
+  error?: string;
+  description?: string;
+  message?: string;
+  name?: string;
+}
+
 export async function POST(request: Request) {
   console.log("Payment link API route called");
   
@@ -115,38 +124,31 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error("Error creating payment link:", error);
       
-      // Extract detailed error information
-      const errorDetails = error instanceof Error ? {
-        message: error.message,
-        name: error.name,
-        // @ts-ignore
-        statusCode: error.statusCode,
-        // @ts-ignore
-        error: error.error,
-        // @ts-ignore
-        description: error.description
-      } : error;
+      // Safe error handling without type assumptions
+      let statusCode = 500;
+      let errorMessage = 'Failed to create payment link';
+      let errorDetails = 'Unknown error occurred';
       
-      console.error("Detailed error information:", JSON.stringify(errorDetails, null, 2));
-      
-      // Handle specific Razorpay errors
-      if (errorDetails.statusCode === 401) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Razorpay authentication failed', 
-          details: 'Invalid API keys. Please check your Razorpay dashboard for the correct credentials.',
-          debug: {
-            key_id_prefix: key_id?.substring(0, 8),
-            error: errorDetails
-          }
-        }, { status: 401 });
+      // Safely check for 401 status
+      if (error && typeof error === 'object') {
+        const err = error as any;
+        if (err.statusCode === 401) {
+          statusCode = 401;
+          errorMessage = 'Razorpay authentication failed';
+          errorDetails = 'Invalid API keys. Please check your Razorpay dashboard for the correct credentials.';
+        } else if (err.message) {
+          errorDetails = err.message;
+        }
       }
       
       return NextResponse.json({ 
         success: false, 
-        error: 'Failed to create payment link', 
-        details: errorDetails
-      }, { status: 500 });
+        error: errorMessage, 
+        details: errorDetails,
+        debug: {
+          key_id_prefix: key_id?.substring(0, 8)
+        }
+      }, { status: statusCode });
     }
   } catch (error) {
     console.error('Error in payment link API route:', error);

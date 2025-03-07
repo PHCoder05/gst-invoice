@@ -67,18 +67,24 @@ export function middleware(req: NextRequest) {
   // Add security headers
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.rzp.io;
     style-src 'self' 'unsafe-inline';
-    img-src 'self' data: https:;
-    font-src 'self';
+    img-src 'self' data: https: blob:;
+    font-src 'self' data:;
     connect-src 'self' 
       https://api.razorpay.com 
+      https://*.razorpay.com
       https://vercel.live 
       https://*.vercel.app 
       https://bctyvhykgrytmtmubwvt.supabase.co
       http://localhost:* 
       http://127.0.0.1:*;
-    frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
+    frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://*.rzp.io;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    media-src 'self';
+    worker-src 'self' blob:;
   `.replace(/\s+/g, ' ').trim();
 
   // Set security headers
