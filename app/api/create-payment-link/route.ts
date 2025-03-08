@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         customer: {
           name: customerName,
           email: customerEmail || '', // Email is optional
-          contact: '', // Phone is optional
+          contact: "+919876543210", // Valid 10-digit phone number with +91 prefix (total 13 chars)
         },
         notify: {
           email: Boolean(customerEmail),
