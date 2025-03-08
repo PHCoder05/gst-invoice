@@ -9,10 +9,24 @@ export async function createPaymentLink(data: {
   amount: number;
   customerName: string;
   customerEmail?: string;
+  customerPhone?: string;
   invoiceId: string;
   description?: string;
 }) {
   try {
+    // Validate input data
+    if (typeof data.amount !== 'number' || isNaN(data.amount) || data.amount <= 0) {
+      throw new Error('Invalid amount: Must be a valid number greater than 0');
+    }
+    
+    if (!data.customerName || typeof data.customerName !== 'string' || data.customerName.trim() === '') {
+      throw new Error('Invalid customer name: Cannot be empty');
+    }
+    
+    if (!data.invoiceId || typeof data.invoiceId !== 'string' || data.invoiceId.trim() === '') {
+      throw new Error('Invalid invoice ID: Cannot be empty');
+    }
+    
     // Get the correct API URL from environment or fallback to relative path
     let apiUrl = '/api/payment-link';
     if (typeof window !== 'undefined') {
@@ -28,52 +42,72 @@ export async function createPaymentLink(data: {
       amount: data.amount,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
+      customerPhone: data.customerPhone,
       invoiceId: data.invoiceId,
       description: data.description,
       apiUrl
     });
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        transactionId: data.invoiceId,
-      }),
-    });
-
-    console.log('Payment link API response status:', response.status);
+    // Prepare the request body
+    const requestBody = {
+      transactionId: data.invoiceId,
+      amount: data.amount,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail || '',
+      customerPhone: data.customerPhone || '',
+      description: data.description || ''
+    };
     
-    const responseText = await response.text();
-    console.log('Payment link API raw response:', responseText);
+    console.log('Request body:', JSON.stringify(requestBody));
     
     try {
-      const result = JSON.parse(responseText);
-      console.log('Payment link API parsed response:', result);
-      
-      if (!response.ok || !result.success) {
-        const errorMessage = result.error || result.details || 'Failed to create payment link';
-        console.error('Payment link creation failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          result
-        });
-        throw new Error(errorMessage);
-      }
-      
-      if (!result.paymentLink) {
-        console.error('Payment link missing in response:', result);
-        throw new Error('Invalid response: Payment link URL not found');
-      }
-      
-      return result;
-    } catch (parseError) {
-      console.error('Failed to parse API response:', {
-        error: parseError,
-        responseText
+      console.log('Sending fetch request to:', apiUrl);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
-      throw new Error('Invalid API response: ' + (parseError instanceof Error ? parseError.message : String(parseError)));
+
+      console.log('Payment link API response status:', response.status);
+      
+      const responseText = await response.text();
+      console.log('Payment link API raw response:', responseText);
+      
+      try {
+        const result = JSON.parse(responseText);
+        console.log('Payment link API parsed response:', result);
+        
+        if (!response.ok || !result.success) {
+          const errorMessage = result.error || result.details || 'Failed to create payment link';
+          const errorDetails = result.details || '';
+          console.error('Payment link creation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorMessage,
+            details: errorDetails,
+            result
+          });
+          throw new Error(`${errorMessage}${errorDetails ? ': ' + errorDetails : ''}`);
+        }
+        
+        if (!result.paymentLink) {
+          console.error('Payment link missing in response:', result);
+          throw new Error('Invalid response: Payment link URL not found');
+        }
+        
+        return result;
+      } catch (parseError) {
+        console.error('Failed to parse API response:', {
+          error: parseError,
+          responseText
+        });
+        throw new Error('Invalid API response: ' + (parseError instanceof Error ? parseError.message : String(parseError)));
+      }
+    } catch (error) {
+      console.error('Error creating payment link:', error);
+      throw error;
     }
   } catch (error) {
     console.error('Error creating payment link:', error);
